@@ -1,3 +1,12 @@
+export  SQLString,
+        SQLColumn, Var
+
+"""
+```
+SQLString( str::String )
+```
+This is a non-mutable struct that represents an SQL string constant.
+"""
 struct SQLString
     str::String
 end
@@ -5,13 +14,25 @@ end
 Base.show( io::IO, sstr::SQLString ) = print( io, "'$(sstr.str)'" )
 
 
-mutable struct SQLColumn
+"""
+```
+SQLColumn(
+    tablename::String,
+    name::String )
+SQLColumn( name::AbstractString )
+```
+This is a non-mutable struct that represents a column with a given `name` belonging to a specific table with name `tablename`, or the current table with the second calling method. It can also represent the name of an alias in the same manner.
+"""
+struct SQLColumn
     tablename::String
     name::String
 end
 
 SQLColumn( name::AbstractString ) = SQLColumn( "", name )
 
+"""
+`Var` is a shorthand for `SQLColumn`, the Julia type that represents a column or alias belonging to a specific database table (or the current one).
+"""
 const Var = SQLColumn
 const SVar = Union{Var, AbstractString}
 Var( sc::Var ) = sc

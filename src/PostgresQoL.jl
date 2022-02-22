@@ -14,4 +14,4 @@ include("join.jl")
 include("query.jl")
 include("compoundquery.jl")
 
-end # module
+end  # module PostgresQoL

@@ -33,6 +33,9 @@ sqlcops = Dict(
 abstract type SQLCondition end
 
 struct NoCondition <: SQLCondition end
+"""
+`nocond` is the empty SQL condition. This will not render if part of a clause.
+"""
 const nocond = NoCondition()
 Base.isempty(cond::SQLCondition) = cond isa NoCondition
 
@@ -68,11 +71,31 @@ function Base.show( io::IO, cc::CompoundCondition )
     print( io, join( cstrs, " $(string(cc.lop) |> uppercase) " ))
 end
 
-
+"""
+```
+SQLAnd( conds::Vector{T} ) where T <: SQLCondition
+SQLAnd( conds::SQLCondition... )
+```
+This function creates an SQL condition that concatenates the SQL conditions in `conds` with the `AND` operator.
+"""
 SQLAnd( conds::Vector{T} ) where T <: SQLCondition = CompoundCondition( :and, conds )
 SQLAnd( conds::SQLCondition... ) = CompoundCondition( :and, conds... )
+"""
+```
+SQLOr( conds::Vector{T} ) where T <: SQLCondition
+SQLOr( conds::SQLCondition... )
+```
+This function creates an SQL condition that concatenates the SQL conditions in `conds` with the `OR` operator.
+"""
 SQLOr( conds::Vector{T} ) where T <: SQLCondition = CompoundCondition( :or, conds )
 SQLOr( conds::SQLCondition... ) = CompoundCondition( :or, conds... )
+"""
+```
+SQLNot( cond::CompoundCondition )
+SQLNot( cond::BaseCondition )
+```
+This function creates an SQL condition that is the logical `NOT` of the SQL condition in `cond`. If a basic SQL condition is passed as argument, it creates a new basic condition with the inverse of the operator.
+"""
 SQLNot( cond::CompoundCondition ) = CompoundCondition( :not, [cond] )
 
 
@@ -112,20 +135,59 @@ SQLNot( cond::BaseCondition ) = BaseCondition( sqlcops[cond.cop][3], cond.args..
 
 for cop in filter( cop -> sqlcops[cop][1] == 1, keys(sqlcops) |> collect )
     etype = cop ∈ [:null, :nnull] ? Union{Real, SVar, SQLString} : Union{Bool, SVar, SQLCondition, SQLString}
-    Core.eval( @__MODULE__, """SQL$cop( arg::$etype ) = BaseCondition( :$cop, arg )""" |> Meta.parse )
+    Core.eval( @__MODULE__, "export SQL$cop" |> Meta.parse )
+    Core.eval( @__MODULE__, """\"\"\"
+    ```
+    SQL$cop( arg::$etype )
+    ```
+    This function creates a SQL condition of type `<arg> $(sqlcops[cop][2][1])`.
+    \"\"\"
+    SQL$cop( arg::$etype ) = BaseCondition( :$cop, arg )""" |> Meta.parse )
 end
 
 for cop in filter( cop -> sqlcops[cop][1] == 2, keys(sqlcops) |> collect )
     etype = Union{Real, SVar, SQLString}
+    Core.eval( @__MODULE__, "export SQL$cop" |> Meta.parse )
+
     if cop ∈ [:in, :nin]
-        Core.eval( @__MODULE__, """SQL$cop( larg::$etype, rarg::Vector{T} ) where T <: $etype = BaseCondition( :$cop, larg, rarg )""" |> Meta.parse )
+        Core.eval( @__MODULE__, """\"\"\"
+        ```
+        SQL$cop(
+            larg::$etype,
+            rarg::Vector{T}
+        ) where T <: $etype
+        SQL$cop(
+            larg::$etype,
+            rarg::SQLStatement )
+        ```
+        This function creates a SQL condition of type `<larg> $(sqlcops[cop][2][1]) <rarg>`.
+        \"\"\"
+        SQL$cop( larg::$etype, rarg::Vector{T} ) where T <: $etype = BaseCondition( :$cop, larg, rarg )""" |> Meta.parse )
         Core.eval( @__MODULE__, """SQL$cop( larg::$etype, rarg::SQLStatement ) = BaseCondition( :$cop, larg, rarg )""" |> Meta.parse )
     else
-        Core.eval( @__MODULE__, """SQL$cop( larg::$etype, rarg::$etype ) = BaseCondition( :$cop, larg, rarg )""" |> Meta.parse )
+        Core.eval( @__MODULE__, """\"\"\"
+        ```
+        SQL$cop(
+            larg::$etype,
+            rarg::$etype )
+        ```
+        This function creates a SQL condition of type `<larg> $(sqlcops[cop][2][1]) <rarg>`.
+        \"\"\"
+        SQL$cop( larg::$etype, rarg::$etype ) = BaseCondition( :$cop, larg, rarg )""" |> Meta.parse )
     end
 end
 
 for cop in filter( cop -> sqlcops[cop][1] == 3, keys(sqlcops) |> collect )
     etype = Union{Real, SVar, SQLString}
-    Core.eval( @__MODULE__, """SQL$cop( carg::$etype, larg::$etype, rarg::$etype ) = BaseCondition( :$cop, carg, larg, rarg )""" |> Meta.parse )
+    Core.eval( @__MODULE__, "export SQL$cop" |> Meta.parse )
+    Core.eval( @__MODULE__, """\"\"\"
+    ```
+    SQL$cop(
+        carg::$etype,
+        larg::$etype,
+        rarg::$etype )
+    ```
+    This function creates a SQL condition of type `<carg> $(sqlcops[cop][2][1]) <larg> $(sqlcops[cop][2][2]) <rarg>`.
+    \"\"\"
+    SQL$cop( carg::$etype, larg::$etype, rarg::$etype ) = BaseCondition( :$cop, carg, larg, rarg )""" |> Meta.parse )
 end
