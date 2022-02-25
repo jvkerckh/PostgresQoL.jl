@@ -18,11 +18,17 @@ mutable struct InsertInto <: SQLStatement
     entries::Vector{Vector}
     returning::Vector{String}
 
-    InsertInto( name::SVar, columns::Vector{Var}=Var[] ) = new( name, columns, Vector[], String[] )
+    InsertInto( name::SVar, columns::Vector{Var} ) = new( name |> Var, columns, Vector[], String[] )
 end
 
-InsertInto( name::SVar, columns::Vector{T}=String[] ) where T <: AbstractString = InsertInto( name, Var.(columns) )
-InsertInto( name::SVar, columns::SVar... ) = InsertInto( name, map( cname -> cname isa Var ? cname : Var(cname), columns |> collect ) )
+InsertInto( name::SVar, columns::Vector{T} ) where T <: AbstractString =
+    InsertInto( name, Var.(columns) )
+
+function InsertInto( name::SVar, columns::SVar... )
+    isempty(columns) && return InsertInto( name, Var[] )
+    InsertInto( name, Var.( columns |> collect ) )
+end
+
 
 function Base.show( io::IO, ini::InsertInto )
     isempty(ini.entries) && return
@@ -85,9 +91,9 @@ end
 
 
 function verify( ini::InsertInto )
-    isempty(ini.entries) && return Int[]
+    isempty(ini.entries) && return Int[], 0
     nvals = length(isempty(ini.columns) ? ini.entries[1] : ini.columns)
-    findall( nvals .!= length.(ini.entries) )
+    return findall( nvals .!= length.(ini.entries) ), nvals
 end
 
 
@@ -114,5 +120,5 @@ insertinto( conn::Conn, df::Bool=true ) = ini::InsertInto -> begin
 
     res = LibPQ.execute( conn, string( ini, ";" ) )
     isempty(ini.returning) && return res
-    res |> makeunique! |> (df ? DataFrame : columntable)
+    res |> makeunique! |> tableresult(df)
 end

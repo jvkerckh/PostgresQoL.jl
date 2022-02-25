@@ -11,6 +11,8 @@ struct SQLString
     str::String
 end
 
+SQLString( sqls::SQLString ) = sqls
+
 Base.show( io::IO, sstr::SQLString ) = print( io, "'$(sstr.str)'" )
 
 

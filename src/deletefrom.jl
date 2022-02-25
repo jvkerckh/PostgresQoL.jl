@@ -65,5 +65,5 @@ sq |> deletefrom(conn)
 deletefrom( conn::Conn, df::Bool=true ) = def::DeleteFrom -> begin
     res = LibPQ.execute( conn, string( def, ";" ) )
     isempty(def.returning) && return res
-    res |> makeunique! |> (df ? DataFrame : columntable)
+    res |> makeunique! |> tableresult(df)
 end

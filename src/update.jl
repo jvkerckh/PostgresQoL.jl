@@ -63,5 +63,5 @@ sq |> update(conn)
 update( conn::Conn, df::Bool=true ) = up::Update -> begin
     res = LibPQ.execute( conn, string( up, ";" ) )
     isempty(up.returning) && return res
-    res |> makeunique! |> (df ? DataFrame : columntable)
+    res |> makeunique! |> tableresult(df)
 end

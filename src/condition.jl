@@ -1,3 +1,6 @@
+export  SQLAnd, SQLOr, SQLNot
+
+
 processentry( x ) = "$x"
 processentry( x::Vector ) = string( '[', join( processentry.(x), ", " ), ']' )
 processentry( x::Missing ) = "NULL"
@@ -13,6 +16,8 @@ sqlcops = Dict(
     :neq => (2, ["<>"], :eq),
     :in => (2, ["IN"], :nin),
     :nin => (2, ["NOT IN"], :in),
+    :like => (2, ["LIKE"], :nlike),
+    :nlike => (2, ["NOT LIKE"], :like),
     :between => (3, ["BETWEEN", "AND"], :nbetween),
     :nbetween => (3, ["NOT BETWEEN", "AND"], :between),
     :betweensym => (3, ["BETWEEN SYMMETRIC", "AND"], :nbetweensym),
@@ -164,6 +169,16 @@ for cop in filter( cop -> sqlcops[cop][1] == 2, keys(sqlcops) |> collect )
         \"\"\"
         SQL$cop( larg::$etype, rarg::Vector{T} ) where T <: $etype = BaseCondition( :$cop, larg, rarg )""" |> Meta.parse )
         Core.eval( @__MODULE__, """SQL$cop( larg::$etype, rarg::SQLStatement ) = BaseCondition( :$cop, larg, rarg )""" |> Meta.parse )
+    elseif cop ∈ [:like, :nlike]
+        Core.eval( @__MODULE__, """\"\"\"
+        ```
+        SQL$cop(
+            larg::$etype,
+            rarg::Union{AbstractString, SQLString} )
+        ```
+        This function creates a SQL condition of type `<larg> $(sqlcops[cop][2][1]) <rarg>`.
+        \"\"\"
+        SQL$cop( larg::$etype, rarg::Union{AbstractString, SQLString} ) = BaseCondition( :$cop, larg, rarg |> SQLString )""" |> Meta.parse )
     else
         Core.eval( @__MODULE__, """\"\"\"
         ```

@@ -1,7 +1,7 @@
 name = "PostgresQoL"
 uuid = "ae6c1656-f32c-40b1-a709-66e8ad29a271"
 authors = ["Johan Van Kerckhoven <johan.vankerckhoven@gmail.com>"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"

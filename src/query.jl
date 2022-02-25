@@ -184,5 +184,5 @@ sq |> select(conn)
 """
 select( conn::Conn, df::Bool=true ) = sq::Select -> begin
     res = LibPQ.execute( conn, string( sq, ";" ) )
-    res |> makeunique! |> (df ? DataFrame : columntable)
+    res |> makeunique! |> tableresult(df)
 end

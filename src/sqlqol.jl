@@ -1,7 +1,6 @@
 export  Conn,
         execute,
         dbconnection,
-        tableresult,
         dbname,
         gettables,
         getcolumnnames
@@ -15,11 +14,28 @@ abstract type SQLStatement end
 const Conn = LibPQ.Connection
 
 
+"""
+```
+execute(
+    conn::Conn,
+    sqls::SQLStatement;
+    kwargs... )
+```
+This function executes the SQL statement `sqls` on the database that `conn` connects to. Extra keyword arguments can be passed if necessary.
+
+```
+execute( conn::Conn; kwargs... )
+```
+This variant generates a function that takes a SQL statement and executes it.
+"""
 function execute( conn::Conn, sqls::SQLStatement; kwargs... )
     tname = typeof(sqls) |> string |> lowercase
     fn = Core.eval( @__MODULE__, tname |> Meta.parse )
-    fn( conn, kwargs... )
+    sqls |> fn( conn, kwargs... )
 end
+
+execute( conn::Conn; kwargs... ) =
+    sqls::SQLStatement -> execute( conn, sqls, kwargs... )
 
 
 """
@@ -31,6 +47,8 @@ dbconnection(
     password::AbstractString="postgres" )
 ```
 This function creates a connection to a PostgreSQL database with name `dbname`. The database is hosted on the server with address `host`, and connects with the given `user` and `password`.
+
+Because the user credentials are transmitted in plaintext, this function should **ONLY** be used to connect to a local database!
 """
 dbconnection( dbname::AbstractString; host::AbstractString="localhost", user::AbstractString="postgres", password::AbstractString="postgres" ) =
     string( "host=", host == "localhost" ? "127.0.0.1" : host, " dbname=$dbname user=$user password=$password" ) |> Conn
@@ -51,7 +69,10 @@ function makeunique!( v::Vector{T} ) where T <: AbstractString
     v
 end
 
-makeunique!( res::LibPQ.Result ) = makeunique!(res.column_names)
+function makeunique!( res::LibPQ.Result )
+    makeunique!(res.column_names)
+    res
+end
 
 makeunique( v::Vector{T} ) where T <: AbstractString =
     deepcopy(v) |> makeunique!
@@ -64,12 +85,20 @@ tableresult(
     df::Bool=true )
 ```
 This function converts the result `res` of a PostgreSQL query to either a `DataFrame` if `df` is `true`, and to a `NamedTuple` (using the function `columntables` from `Tables.jl`) otherwise.
+
+```
+tableresult( df::Bool=true )
+```
+This variant generates a function that takes a SQL statement and executes it.
 """
 function tableresult( res::LibPQ.Result{false}; df::Bool=true )
     tmpres = deepcopy(res)
     makeunique!(tmpres.column_names)
-    res |> (df ? DataFrame : columntable)
+    tmpres |> (df ? DataFrame : columntable)
 end
+
+tableresult( df::Bool=true ) =
+    res::LibPQ.Result{false} -> tableresult( res, df=df )
 
 
 """
@@ -91,15 +120,13 @@ gettables( conn::Conn )
 This function returns a vector with the names of all the user-defined tables in the database that `conn` is connecting to. System tables are left out of this list.
 """
 function gettables( conn::Conn )
-    # Rework to use QoL functions.
-    # res = execute( conn, """SELECT table_name FROM information_schema.tables
-    #     WHERE table_schema = 'public' AND table_catalog = '$(dbname(conn))';""" ) |> tableresult
-    Select( "information_schema.tables" ) |>
+    res = Select( "information_schema.tables" ) |>
         addqueryfield!( "table_name" ) |>
         setwhereclause!( SQLAnd(
             SQLeq( "table_schema", "public" |> SQLString ),
             SQLeq( "table_catalog", dbname(conn) |> SQLString ) ) ) |>
-        selectquery(conn) |> tableresult
+        select(conn)
+    isempty(res) && return String[]
     res[:, :table_name] |> Vector{String}
 end
 
@@ -118,16 +145,13 @@ function getcolumnnames( conn::Conn, tablename::AbstractString )
         return String[]
     end
 
-    # Rework to use QoL functions.
-    # res = execute( conn, """SELECT column_name FROM information_schema.columns
-    #     WHERE table_catalog = '$(dbname(conn))' AND table_name = '$tablename'
-    #     ORDER BY ordinal_position;""" ) |> tableresult
-    Select( "information_schema.columns" ) |>
+    res = Select( "information_schema.columns" ) |>
         addqueryfield!( "column_name" ) |>
         setwhereclause!( SQLAnd(
-            SQLeq( "table_catalog", "dbname(conn)" |> SQLString ),
-            SQLeq( "table_name", "tablename" |> SQLString ) ) ) |>
+            SQLeq( "table_catalog", dbname(conn) |> SQLString ),
+            SQLeq( "table_name", tablename |> SQLString ) ) ) |>
         addorderby!( "ordinal_position" ) |>
-        selectquery(conn) |> tableresult
+        select(conn)
+    isempty(res) && return String[]
     res[:, :column_name] |> Vector{String}
 end
