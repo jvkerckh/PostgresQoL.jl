@@ -9,6 +9,8 @@ This is a non-mutable struct that represents an SQL string constant. Any non-str
 """
 struct SQLString
     str::String
+
+    SQLString( x::AbstractString ) = new(x)
 end
 
 SQLString( sqls::SQLString ) = sqls
