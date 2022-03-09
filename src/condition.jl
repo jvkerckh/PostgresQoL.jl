@@ -4,7 +4,7 @@ export  SQLAnd, SQLOr, SQLNot
 processentry( x ) = "$x"
 processentry( x::Vector ) = string( '[', join( processentry.(x), ", " ), ']' )
 processentry( x::Missing ) = "NULL"
-processentry( x::Dict ) = json(x) |> processentry
+processentry( x::Dict ) = json(x)
 
 
 sqlcops = Dict(

@@ -170,7 +170,7 @@ Update("weather") |>
     addcolumnupdate!( "temp_hi", "temp_hi - 2" ) |>
     addcolumnupdate!( "temp_lo", "temp_lo - 2" ) |>
     setwhereclause!( SQLgt( "date", "'1994-11-28'" ) ) |>
-    execute(conn) |> display
+    execute(conn)
 
 Select("weather") |>
     addqueryfield!("*") |>
@@ -178,7 +178,7 @@ Select("weather") |>
 
 DeleteFrom("weather") |>
     setwhereclause!( SQLeq( "city", "Hayward" |> SQLString ) ) |>
-    execute(conn) |> display
+    execute(conn)
 
 Select("weather") |>
     addqueryfield!("*") |>

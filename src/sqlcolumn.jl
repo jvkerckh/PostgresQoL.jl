@@ -3,15 +3,16 @@ export  SQLString,
 
 """
 ```
-SQLString( str::String )
+SQLString( x )
 ```
-This is a non-mutable struct that represents an SQL string constant.
+This is a non-mutable struct that represents an SQL string constant. Any non-string entries are first processed to a string, then cast as a `SQLString` object.
 """
 struct SQLString
     str::String
 end
 
 SQLString( sqls::SQLString ) = sqls
+SQLString( x ) = x |> processentry |> SQLString
 
 Base.show( io::IO, sstr::SQLString ) = print( io, "'$(sstr.str)'" )
 
