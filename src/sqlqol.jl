@@ -29,7 +29,7 @@ execute( conn::Conn; kwargs... )
 This variant generates a function that takes a SQL statement and executes it.
 """
 function execute( conn::Conn, sqls::SQLStatement; kwargs... )
-    tname = typeof(sqls) |> string |> lowercase
+    tname = split( typeof(sqls) |> string, "." )[end] |> lowercase
     fn = Core.eval( @__MODULE__, tname |> Meta.parse )
     sqls |> fn( conn, kwargs... )
 end
